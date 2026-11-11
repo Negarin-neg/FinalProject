@@ -13,3 +13,8 @@ class SQLiteEmployeeRepository(IEmployeeRepository):
         with sqlite3.connect("CoreBaningDB.db") as connection:
             cursor = connection.cursor()
             cursor.execute("Insert...")
+
+    def update_photo_path(self, employee_id: int, photo_path):
+        with sqlite3.connect("CoreBaningDB.db") as connection:
+            cursor = connection.cursor()
+            cursor.execute("Update...")

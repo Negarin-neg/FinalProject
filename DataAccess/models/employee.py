@@ -27,5 +27,6 @@ class EmployeeModel(Base):
     role_id: Mapped[int | None] = mapped_column(
         "RoleId", Integer, ForeignKey("Role.Id"), nullable=True
     )
+    photo_path: Mapped[str | None] = mapped_column("PhotoPath", String(260), nullable=True)
     role: Mapped[RoleModel] = relationship(back_populates="employees")
     status: Mapped[EmployeeStatusModel] = relationship(back_populates="employees")

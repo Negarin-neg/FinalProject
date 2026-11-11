@@ -67,14 +67,25 @@ class RegisterFrame(Frame):
         )
 
         if response.success:
+            # The account is NOT created yet - the user must confirm the
+            # one-time code that was just sent to their mobile.
             messagebox.showinfo("Register", response.message)
-            self.clear_fields()
-            self.main_view.show_frame("login")
+
+            mobile = response.data
+            self.password_entry.clear()
+
+            otp_frame = self.main_view.show_frame("otp")
+            otp_frame.start(mobile)
         else:
             messagebox.showerror("Registration Failed", response.message)
 
     def back_button_clicked(self):
         self.main_view.show_frame("login")
+
+    def prefill_username(self, username: str):
+        """Called by the login page when no account exists for the username."""
+        self.username_entry.delete(0, "end")
+        self.username_entry.insert(0, username)
 
     def clear_fields(self):
         self.firstname_entry.delete(0, "end")

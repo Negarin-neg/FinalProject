@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tkinter import Frame, Label, Entry, Button, messagebox
+from tkinter import Frame, Label, Entry, Button, messagebox, filedialog
 from typing import TYPE_CHECKING
 
 from BusinessLogic.user_business_logic import UserBusinessLogic
@@ -25,7 +25,20 @@ class ProfileFrame(Frame):
 
         # ---- left column: the photo ----
         self.photo_view = PhotoView(self, size=150)
-        self.photo_view.grid(row=0, column=0, rowspan=4, padx=15, pady=(15, 5), sticky="n")
+        self.photo_view.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="n")
+
+        self.photo_buttons_frame = Frame(self)
+        self.photo_buttons_frame.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="n")
+
+        self.upload_photo_button = Button(
+            self.photo_buttons_frame, text="Upload Photo", command=self.upload_photo_button_clicked
+        )
+        self.upload_photo_button.grid(row=0, column=0, pady=(0, 5), sticky="ew")
+
+        self.remove_photo_button = Button(
+            self.photo_buttons_frame, text="Remove Photo", command=self.remove_photo_button_clicked
+        )
+        self.remove_photo_button.grid(row=1, column=0, sticky="ew")
 
         # ---- right columns: the information ----
         self.firstname_entry = self._add_entry_row(0, "First Name", top_padding=15)
@@ -107,6 +120,12 @@ class ProfileFrame(Frame):
         self.current_password_entry.clear()
         self.new_password_entry.clear()
 
+        self._refresh_photo()
+
+    def _refresh_photo(self):
+        photo_bytes = self.user_business.get_profile_photo(self.employee.id)
+        self.photo_view.set_photo(photo_bytes)
+
     def save_button_clicked(self):
         response = self.user_business.update_profile(
             self.employee.id,
@@ -131,3 +150,44 @@ class ProfileFrame(Frame):
 
     def back_button_clicked(self):
         self.main_view.show_frame("home")
+
+    def upload_photo_button_clicked(self):
+        file_path = filedialog.askopenfilename(
+            title="Select a profile photo",
+            filetypes=[
+                ("Image files", "*.jpg *.jpeg *.png *.gif *.webp *.bmp"),
+                ("All files", "*.*"),
+            ],
+        )
+
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, "rb") as photo_file:
+                file_bytes = photo_file.read()
+        except OSError:
+            messagebox.showerror("My Profile", "خواندن فایل انتخاب‌شده ناموفق بود.")
+            return
+
+        response = self.user_business.upload_profile_photo(self.employee.id, file_bytes, file_path)
+
+        if response.success:
+            self.employee = response.data
+            self._refresh_photo()
+            # keep the Home page photo in sync
+            self.main_view.get_frame("home").set_current_employee(self.employee)
+            messagebox.showinfo("My Profile", response.message)
+        else:
+            messagebox.showerror("My Profile", response.message)
+
+    def remove_photo_button_clicked(self):
+        response = self.user_business.remove_profile_photo(self.employee.id)
+
+        if response.success:
+            self.employee = response.data
+            self._refresh_photo()
+            self.main_view.get_frame("home").set_current_employee(self.employee)
+            messagebox.showinfo("My Profile", response.message)
+        else:
+            messagebox.showerror("My Profile", response.message)

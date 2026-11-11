@@ -30,3 +30,6 @@ AND		Password	=	%s""", (username, password))
 
     def insert(self, employee: Employee):
         pass
+
+    def update_photo_path(self, employee_id: int, photo_path):
+        pass

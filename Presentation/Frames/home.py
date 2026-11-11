@@ -44,7 +44,10 @@ class HomeFrame(Frame):
         role_name = self.current_employee.role.name if self.current_employee.role else "No role"
         self.header_label.config(
             text=f"Welcome {self.current_employee.get_fullname()} ({role_name})")
-        self.photo_view.set_photo(None)
+
+        # Show the employee's stored photo (or the placeholder when absent).
+        photo_bytes = self.main_view.user_business.get_profile_photo(self.current_employee.id)
+        self.photo_view.set_photo(photo_bytes)
 
         match self.current_employee.role:
             case Roles.ADMINISTRATOR:

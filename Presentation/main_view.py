@@ -1,6 +1,7 @@
 from Presentation.window import Window
 from Presentation.Frames.login import LoginFrame
 from Presentation.Frames.register import RegisterFrame
+from Presentation.Frames.otp import OtpFrame
 from Presentation.Frames.home import HomeFrame
 from Presentation.Frames.profile import ProfileFrame
 from tkinter import Frame
@@ -11,14 +12,16 @@ from tkinter import Frame
 class MainView:
     def __init__(self,user_business):
         self.frames = {}
+        self.user_business = user_business
 
         self.window = Window("Core Banking")
 
 
 
         self.add_frame("home", HomeFrame(self.window, self), 400, 400)
-        self.add_frame("profile", ProfileFrame(self.window, self, user_business), 680, 470)
+        self.add_frame("profile", ProfileFrame(self.window, self, user_business), 680, 570)
         self.add_frame("register", RegisterFrame(self.window, self, user_business), 420, 420)
+        self.add_frame("otp", OtpFrame(self.window, self, user_business), 380, 320)
         self.add_frame("login", LoginFrame(self.window, self,user_business), 400, 300)
 
         self.show_frame("login")

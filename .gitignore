@@ -25,3 +25,6 @@ dist/
 
 #DataBase
 *.sql
+
+# Uploaded profile photos
+storage/

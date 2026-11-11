@@ -3,6 +3,7 @@ from tkinter import Frame, Label, Entry, Button, Checkbutton, messagebox
 from Presentation.Component.password_entry import PasswordEntry
 from Presentation.Component.captcha import CaptchaComponent
 
+from Common.Enums.error_code import ErrorCode
 from BusinessLogic.user_business_logic import UserBusinessLogic
 
 
@@ -179,6 +180,23 @@ class LoginFrame(Frame):
 
             # don't leave the credentials in the form behind
             self.reset()
+
+        elif response.error_code == ErrorCode.ACCOUNT_NOT_FOUND:
+
+            # No such account: tell the user, then send them to registration
+            # with the username they already typed carried over.
+            messagebox.showwarning(
+                "Account Not Found",
+                response.message
+            )
+
+            self.captcha.refresh()
+
+            register_frame = self.main_view.show_frame("register")
+            register_frame.prefill_username(username)
+
+            # don't leave the rejected password in the form behind
+            self.password_entry.clear()
 
         else:
 

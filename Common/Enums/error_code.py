@@ -1,0 +1,14 @@
+from enum import Enum
+
+
+class ErrorCode(Enum):
+    """Machine-readable reasons the UI may need to react to."""
+
+    ACCOUNT_NOT_FOUND = "ACCOUNT_NOT_FOUND"
+    OTP_INVALID = "OTP_INVALID"
+    OTP_EXPIRED = "OTP_EXPIRED"
+    OTP_TOO_MANY_ATTEMPTS = "OTP_TOO_MANY_ATTEMPTS"
+    OTP_NOT_FOUND = "OTP_NOT_FOUND"
+    OTP_RESEND_COOLDOWN = "OTP_RESEND_COOLDOWN"
+    OTP_SEND_LIMIT = "OTP_SEND_LIMIT"
+    SMS_DELIVERY_FAILED = "SMS_DELIVERY_FAILED"

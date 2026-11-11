@@ -39,6 +39,7 @@ class SQLAlchemyEmployeeRepository(IEmployeeRepository):
                 mobile=employee.mobile,
                 employee_status_id=employee.status.value,
                 role_id=employee.role.value if employee.role else None,
+                photo_path=employee.photo_path,
             )
             session.add(model)
 
@@ -56,6 +57,15 @@ class SQLAlchemyEmployeeRepository(IEmployeeRepository):
             model.username = employee.username
             model.password = employee.password
             model.mobile = employee.mobile
+
+    def update_photo_path(self, employee_id: int, photo_path):
+        with create_session() as session:
+            model = session.get(EmployeeModel, employee_id)
+
+            if model is None:
+                raise LookupError(f"Employee {employee_id} does not exist.")
+
+            model.photo_path = photo_path
 
     def _get_one(self, *conditions) -> Employee:
         with create_session() as session:
@@ -79,4 +89,5 @@ class SQLAlchemyEmployeeRepository(IEmployeeRepository):
             model.mobile,
             model.employee_status_id,
             model.role_id,
+            model.photo_path,
         )

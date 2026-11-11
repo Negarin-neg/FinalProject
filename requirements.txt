@@ -5,3 +5,4 @@ captcha
 Pillow
 sqlalchemy
 pyodbc
+pika

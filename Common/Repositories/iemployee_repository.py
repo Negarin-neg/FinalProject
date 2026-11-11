@@ -26,3 +26,7 @@ class IEmployeeRepository(ABC):
     @abstractmethod
     def update_profile(self, employee: Employee):
         pass
+
+    @abstractmethod
+    def update_photo_path(self, employee_id: int, photo_path):
+        pass
