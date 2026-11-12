@@ -93,7 +93,9 @@ class OtpFrame(Frame):
         self.code_entry.focus_set()
 
     def _show_sent_notice(self):
-        self.info_label.config(text=f"کد به {mask_mobile(self.mobile)} ارسال شده")
+        self.info_label.config(
+            text=f"Verification code sent to {mask_mobile(self.mobile)}"
+        )
 
     def _stop_countdown(self):
         if self._tick_job is not None:
@@ -109,7 +111,10 @@ class OtpFrame(Frame):
 
     def _tick(self):
         if self.seconds_left <= 0:
-            self.countdown_label.config(text="زمان کد به پایان رسید. کد جدید بگیرید.", fg="#b00020")
+            self.countdown_label.config(
+                text="The code has expired. Please request a new code.",
+                fg="#b00020",
+            )
             self._tick_job = None
             return
 
@@ -120,7 +125,7 @@ class OtpFrame(Frame):
     def _update_countdown_label(self):
         minutes, seconds = divmod(max(0, self.seconds_left), 60)
         self.countdown_label.config(
-            text=f"اعتبار کد: {minutes:02d}:{seconds:02d}",
+            text=f"Code valid for: {minutes:02d}:{seconds:02d}",
             fg="gray",
         )
 
@@ -132,14 +137,14 @@ class OtpFrame(Frame):
         code = self.code_entry.get().strip()
 
         if not code:
-            messagebox.showerror("OTP", "کد تأیید را وارد کنید.")
+            messagebox.showerror("OTP", "Please enter the verification code.")
             return
 
         response = self.user_business.verify_registration_otp(self.mobile, code)
 
         if response.success:
             self._stop_countdown()
-            messagebox.showinfo("ثبت نام", response.message)
+            messagebox.showinfo("Registration", response.message)
 
             # Clear the registration form now that the account really exists
             # and take the user straight to the login page.
@@ -163,7 +168,10 @@ class OtpFrame(Frame):
             # These need a brand new code, so stop pretending the old one is
             # still counting down.
             self._stop_countdown()
-            self.countdown_label.config(text="کد جدید بگیرید.", fg="#b00020")
+            self.countdown_label.config(
+                text="Please request a new code.",
+                fg="#b00020",
+            )
 
     def resend_button_clicked(self):
         response = self.user_business.resend_registration_otp(self.mobile)

@@ -167,7 +167,9 @@ class ProfileFrame(Frame):
             with open(file_path, "rb") as photo_file:
                 file_bytes = photo_file.read()
         except OSError:
-            messagebox.showerror("My Profile", "خواندن فایل انتخاب‌شده ناموفق بود.")
+            messagebox.showerror(
+                "My Profile", "The selected file could not be read."
+            )
             return
 
         response = self.user_business.upload_profile_photo(self.employee.id, file_bytes, file_path)

@@ -20,12 +20,12 @@ class SmsIrSenderTests(unittest.TestCase):
             api_key="dummy-key",
             line_number="30002108030258",
             base_url="https://api.sms.ir",
-            message_template="کد تأیید شما: {code}",
+            message_template="Your verification code: {code}",
         )
 
     @patch("DataAccess.Services.sms_ir_sender.requests.post")
     def test_sends_plain_text_message_through_bulk_endpoint(self, mock_post):
-        mock_post.return_value = FakeResponse(body={"status": 1, "message": "موفق"})
+        mock_post.return_value = FakeResponse(body={"status": 1, "message": "success"})
 
         self.assertTrue(self.sender.send_otp("09121234567", "54321"))
 

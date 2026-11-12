@@ -13,7 +13,7 @@ ALLOWED_FORMATS = set(PHOTO_EXTENSIONS)
 
 
 class PhotoValidationError(Exception):
-    """Raised with a user-facing Persian message when an upload is rejected."""
+    """Raised with a user-facing English message when an upload is rejected."""
 
 
 class PhotoService:
@@ -34,10 +34,10 @@ class PhotoService:
         extension), so a renamed non-image cannot slip through.
         """
         if not file_bytes:
-            raise PhotoValidationError("فایلی انتخاب نشده است.")
+            raise PhotoValidationError("No file was selected.")
 
         if len(file_bytes) > MAX_PHOTO_BYTES:
-            raise PhotoValidationError("حجم تصویر نباید بیشتر از ۲ مگابایت باشد.")
+            raise PhotoValidationError("The image must not be larger than 2 MB.")
 
         try:
             with Image.open(BytesIO(file_bytes)) as probe:
@@ -47,13 +47,15 @@ class PhotoService:
                 image_format = image.format
                 width, height = image.size
         except (UnidentifiedImageError, OSError, ValueError):
-            raise PhotoValidationError("فایل انتخاب‌شده یک تصویر معتبر نیست.")
+            raise PhotoValidationError("The selected file is not a valid image.")
 
         if image_format not in ALLOWED_FORMATS:
-            raise PhotoValidationError("فقط تصاویر JPG، PNG، GIF، WEBP یا BMP مجاز هستند.")
+            raise PhotoValidationError(
+                "Only JPG, PNG, GIF, WEBP or BMP images are allowed."
+            )
 
         if width > MAX_PHOTO_DIMENSION or height > MAX_PHOTO_DIMENSION:
-            raise PhotoValidationError("ابعاد تصویر بیش از حد بزرگ است.")
+            raise PhotoValidationError("The image dimensions are too large.")
 
         return image_format
 

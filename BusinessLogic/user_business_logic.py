@@ -57,7 +57,8 @@ class UserBusinessLogic:
         if self.employee_repository.get_by_username(username) is None:
             return Response(
                 False,
-                "حسابی با این نام کاربری وجود ندارد. برای ایجاد حساب به صفحهٔ ثبت‌نام منتقل می‌شوید.",
+                "No account exists with this username. "
+                "You will be taken to the registration page to create one.",
                 error_code=ErrorCode.ACCOUNT_NOT_FOUND,
             )
 
@@ -125,25 +126,25 @@ class UserBusinessLogic:
             case OtpStatus.NOT_FOUND:
                 return Response(
                     False,
-                    "کد تأیید یافت نشد. لطفاً دوباره ثبت‌نام کنید.",
+                    "Verification code not found. Please register again.",
                     error_code=ErrorCode.OTP_NOT_FOUND,
                 )
             case OtpStatus.EXPIRED:
                 return Response(
                     False,
-                    "کد تأیید منقضی شده است. لطفاً کد جدید بگیرید.",
+                    "The verification code has expired. Please request a new code.",
                     error_code=ErrorCode.OTP_EXPIRED,
                 )
             case OtpStatus.TOO_MANY_ATTEMPTS:
                 return Response(
                     False,
-                    "تعداد تلاش‌های ناموفق بیش از حد مجاز است. لطفاً کد جدید بگیرید.",
+                    "Too many failed attempts. Please request a new code.",
                     error_code=ErrorCode.OTP_TOO_MANY_ATTEMPTS,
                 )
             case OtpStatus.INVALID:
                 return Response(
                     False,
-                    "کد تأیید نادرست است.",
+                    "The verification code is incorrect.",
                     error_code=ErrorCode.OTP_INVALID,
                 )
 
@@ -152,7 +153,7 @@ class UserBusinessLogic:
         if pending is None:
             return Response(
                 False,
-                "کد تأیید یافت نشد. لطفاً دوباره ثبت‌نام کنید.",
+                "Verification code not found. Please register again.",
                 error_code=ErrorCode.OTP_NOT_FOUND,
             )
 
@@ -178,7 +179,7 @@ class UserBusinessLogic:
         )
         self.employee_repository.insert(employee)
 
-        return Response(True, "ثبت نام شما با موفقیت انجام شد.", employee)
+        return Response(True, "Your registration was completed successfully.", employee)
 
     # ------------------------------------------------------------------
     # OTP plumbing
@@ -198,11 +199,11 @@ class UserBusinessLogic:
             self.otp_service.discard(mobile)
             return Response(
                 False,
-                "ارسال پیامک ناموفق بود. لطفاً بعداً دوباره تلاش کنید.",
+                "The SMS could not be sent. Please try again later.",
                 error_code=ErrorCode.SMS_DELIVERY_FAILED,
             )
 
-        return Response(True, f"کد تأیید به شماره {mobile} ارسال شد.", mobile)
+        return Response(True, f"Verification code sent to {mobile}.", mobile)
 
     @staticmethod
     def _otp_refusal_response(refusal):
@@ -211,20 +212,20 @@ class UserBusinessLogic:
         if reason == "cooldown":
             return Response(
                 False,
-                f"برای ارسال دوباره {seconds} ثانیه صبر کنید.",
+                f"Please wait {seconds} seconds before requesting another code.",
                 error_code=ErrorCode.OTP_RESEND_COOLDOWN,
             )
 
         if reason == "send_limit":
             return Response(
                 False,
-                "تعداد درخواست‌های ارسال کد بیش از حد مجاز است. لطفاً بعداً تلاش کنید.",
+                "Too many code requests. Please try again later.",
                 error_code=ErrorCode.OTP_SEND_LIMIT,
             )
 
         return Response(
             False,
-            "کد تأیید یافت نشد. لطفاً دوباره ثبت‌نام کنید.",
+            "Verification code not found. Please register again.",
             error_code=ErrorCode.OTP_NOT_FOUND,
         )
 
@@ -328,7 +329,7 @@ class UserBusinessLogic:
         never passes another user's id, and the file name is derived from it,
         so one user cannot touch another's photo."""
         if self.photo_service is None:
-            return Response(False, "قابلیت بارگذاری تصویر در دسترس نیست.")
+            return Response(False, "Photo upload is not available.")
 
         employee = self.employee_repository.get_by_id(employee_id)
         if employee is None:
@@ -342,11 +343,11 @@ class UserBusinessLogic:
         self.employee_repository.update_photo_path(employee_id, photo_path)
         employee.photo_path = photo_path
 
-        return Response(True, "تصویر پروفایل با موفقیت ذخیره شد.", employee)
+        return Response(True, "Profile photo saved successfully.", employee)
 
     def remove_profile_photo(self, employee_id: int):
         if self.photo_service is None:
-            return Response(False, "قابلیت بارگذاری تصویر در دسترس نیست.")
+            return Response(False, "Photo upload is not available.")
 
         employee = self.employee_repository.get_by_id(employee_id)
         if employee is None:
@@ -356,7 +357,7 @@ class UserBusinessLogic:
         self.employee_repository.update_photo_path(employee_id, None)
         employee.photo_path = None
 
-        return Response(True, "تصویر پروفایل حذف شد.", employee)
+        return Response(True, "Profile photo removed.", employee)
 
     # ------------------------------------------------------------------
     # Validation helpers (shared by register and update_profile)

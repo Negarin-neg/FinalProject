@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from Presentation.main_view import MainView
+from Presentation.API.Client.account_api_client import AccountApiClient
 from BusinessLogic.otp_service import OtpService
 from BusinessLogic.photo_service import PhotoService
 from BusinessLogic.user_business_logic import UserBusinessLogic
@@ -40,4 +41,6 @@ user_business = UserBusinessLogic(
     photo_service=photo_service,
 )
 
-MainView(user_business)
+account_api_client = AccountApiClient()
+
+MainView(user_business, account_api_client)

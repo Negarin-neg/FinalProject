@@ -5,10 +5,15 @@ record what was stored/sent so the tests can assert on it.
 """
 
 from hashlib import md5
+from datetime import datetime
 
+from Common.Entities.account import Account
+from Common.Entities.customer import Customer
 from Common.Entities.employee import Employee
+from Common.Entities.transaction import Transaction
 from Common.Enums.employee_status import EmployeeStatus
 from Common.Enums.role import Roles
+from Common.Repositories.iaccount_repository import IAccountRepository
 from Common.Repositories.iemployee_repository import IEmployeeRepository
 from Common.Repositories.ismssender import ISmsSender
 
@@ -88,3 +93,88 @@ class RecordingSmsSender(ISmsSender):
     def send_otp(self, mobile: str, code: str) -> bool:
         self.sent.append((mobile, code))
         return self.succeed
+
+
+class InMemoryAccountRepository(IAccountRepository):
+    def __init__(self):
+        self.accounts = {}
+        self.transactions = {}
+        self._next_account_id = 1
+        self._next_transaction_id = 1
+
+    def add_account(self, first_name="Negar", last_name="Sadeghi", account_number="1001"):
+        customer = Customer(self._next_account_id, first_name, last_name)
+        account = Account(
+            self._next_account_id,
+            account_number,
+            datetime(2026, 1, 1, 9, 0),
+            customer,
+        )
+        self.accounts[account.id] = account
+        self.transactions[account.id] = []
+        self._next_account_id += 1
+        return account
+
+    def add_transaction(
+        self,
+        account_id,
+        amount,
+        transaction_type,
+        created_at=None,
+    ):
+        account = self.accounts[account_id]
+        transaction = Transaction(
+            self._next_transaction_id,
+            amount,
+            transaction_type.value,
+            created_at or datetime(2026, 1, 2, 9, 0),
+            account,
+        )
+        self.transactions[account_id].append(transaction)
+        self._next_transaction_id += 1
+        return transaction
+
+    def get_account_list(self, search: str = "", page_number: int = 1, page_size: int = 20):
+        accounts = list(self.accounts.values())
+        search = (search or "").strip().lower()
+
+        if search:
+            accounts = [
+                account
+                for account in accounts
+                if search in account.account_number.lower()
+                or search in account.owner_customer.get_fullname().lower()
+            ]
+
+        start = (page_number - 1) * page_size
+        return accounts[start:start + page_size]
+
+    def get_account_by_id(self, account_id: int):
+        return self.accounts.get(account_id)
+
+    def get_transaction_by_account_id(self, account_id: int):
+        return list(self.transactions.get(account_id, []))
+
+    def insert_transaction(self, account_id: int, amount, transaction_type):
+        if account_id not in self.accounts:
+            raise LookupError(f"Account {account_id} does not exist.")
+
+        return self.add_transaction(
+            account_id,
+            amount,
+            transaction_type,
+            datetime(2026, 2, 1, 12, 0),
+        ).id
+
+
+def make_banker(employee_id=1, role=Roles.BANKER, status=EmployeeStatus.Active):
+    return Employee(
+        employee_id,
+        "Test",
+        "Banker",
+        "test.banker",
+        md5(b"Passw0rd@").hexdigest(),
+        "09120000000",
+        status.value,
+        role.value,
+    )

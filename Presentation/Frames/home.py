@@ -30,7 +30,7 @@ class HomeFrame(Frame):
         # (see set_current_employee).
         self.employee_management = Button(self, text="Employee Management", command=self.not_implemented_clicked)
 
-        self.account_management = Button(self, text="Account Management", command=self.not_implemented_clicked)
+        self.account_management = Button(self, text="Account Management", command=self.account_management_clicked)
 
         self.profile_management = Button(self, text="My Profile", command=self.profile_button_clicked)
         self.profile_management.grid(row=4, column=0, pady=(0, 10), padx=10, sticky="ew")
@@ -48,11 +48,14 @@ class HomeFrame(Frame):
         # Show the employee's stored photo (or the placeholder when absent).
         photo_bytes = self.main_view.user_business.get_profile_photo(self.current_employee.id)
         self.photo_view.set_photo(photo_bytes)
+        self.main_view.account_api_client.set_employee(self.current_employee.id)
 
         match self.current_employee.role:
             case Roles.ADMINISTRATOR:
                 self.employee_management.grid(row=2, column=0, pady=(0, 10), padx=10, sticky="ew")
-                self.account_management.grid_forget()
+                # Administrators also need the customer/account list, so the
+                # reference layout is extended with the same account screen.
+                self.account_management.grid(row=3, column=0, pady=(0, 10), padx=10, sticky="ew")
             case Roles.BANKER:
                 self.employee_management.grid_forget()
                 self.account_management.grid(row=3, column=0, pady=(0, 10), padx=10, sticky="ew")
@@ -67,7 +70,12 @@ class HomeFrame(Frame):
     def not_implemented_clicked(self):
         messagebox.showinfo("Coming soon", "This section is not implemented yet.")
 
+    def account_management_clicked(self):
+        account_management = self.main_view.show_frame("account_management")
+        account_management.load_account_list()
+
     def logout_button_clicked(self):
         self.current_employee = None
         self.photo_view.set_photo(None)
+        self.main_view.account_api_client.clear_employee()
         self.main_view.show_frame("login")

@@ -11,7 +11,7 @@ DEFAULT_BASE_URL = "https://api.sms.ir"
 BULK_SEND_PATH = "/v1/send/bulk"
 
 # Text of the OTP message. Override with SMS_OTP_MESSAGE_TEMPLATE in .env.
-DEFAULT_OTP_MESSAGE_TEMPLATE = "کد تأیید شما: {code}"
+DEFAULT_OTP_MESSAGE_TEMPLATE = "Your verification code: {code}"
 
 REQUEST_TIMEOUT_SECONDS = 15
 

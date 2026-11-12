@@ -26,7 +26,7 @@ class LoginTests(unittest.TestCase):
         response = self.business.login("nobody", "Passw0rd@")
         self.assertFalse(response.success)
         self.assertEqual(response.error_code, ErrorCode.ACCOUNT_NOT_FOUND)
-        self.assertIn("ثبت‌نام", response.message)
+        self.assertIn("registration", response.message)
 
 
 if __name__ == "__main__":
