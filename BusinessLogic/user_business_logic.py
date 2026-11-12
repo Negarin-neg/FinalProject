@@ -178,7 +178,7 @@ class UserBusinessLogic:
         )
         self.employee_repository.insert(employee)
 
-        return Response(True, "ثبت‌نام با موفقیت انجام شد. اکنون می‌توانید وارد شوید.", employee)
+        return Response(True, "ثبت نام شما با موفقیت انجام شد.", employee)
 
     # ------------------------------------------------------------------
     # OTP plumbing

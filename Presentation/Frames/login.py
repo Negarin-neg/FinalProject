@@ -219,3 +219,10 @@ class LoginFrame(Frame):
     def register_button_clicked(self):
 
         self.main_view.show_frame("register")
+
+    def prefill_username(self, username: str):
+        """Called by the OTP page after a successful registration."""
+
+        self.username_entry.delete(0, "end")
+
+        self.username_entry.insert(0, username)

@@ -21,7 +21,10 @@ repository = SQLAlchemyEmployeeRepository()
 # queue is visible in the management dashboard. Set SMS_USE_QUEUE=false in
 # .env to bypass the broker.
 if os.getenv("SMS_USE_QUEUE", "true").lower() == "true":
-    sms_sender = QueueSmsSender(RabbitMqOtpQueue())
+    # The worker is a separate process (python -m workers.otp_worker). If it is
+    # not running, the queue sender falls back to SmsIrSender so registration
+    # still delivers the code.
+    sms_sender = QueueSmsSender(RabbitMqOtpQueue(), fallback_sender=SmsIrSender())
 else:
     sms_sender = SmsIrSender()
 

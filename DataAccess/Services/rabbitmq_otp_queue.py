@@ -64,13 +64,24 @@ class RabbitMqOtpQueue(IotpQueue):
             blocked_connection_timeout=10,
         )
 
-    def enqueue(self, mobile: str, code: str) -> bool:
+    def enqueue(self, mobile: str, code: str):
         connection = None
         try:
             connection = pika.BlockingConnection(self._parameters())
             channel = connection.channel()
             # Durable queue -> survives a broker restart and is listed in the UI.
-            channel.queue_declare(queue=self.queue_name, durable=True)
+            result = channel.queue_declare(queue=self.queue_name, durable=True)
+
+            # With nobody consuming the queue (the worker process is not
+            # running) a published job would just sit there forever, so report
+            # "nothing was published" instead of waiting for a reply that can
+            # never arrive. The caller can then send the SMS directly.
+            if result.method.consumer_count == 0:
+                print(
+                    f"RabbitMQ: no worker is consuming '{self.queue_name}'. "
+                    "Start it with: python -m workers.otp_worker"
+                )
+                return None
 
             reply_queue = self._declare_reply_queue(channel)
             correlation_id = str(uuid.uuid4())
@@ -96,7 +107,8 @@ class RabbitMqOtpQueue(IotpQueue):
             return self._wait_for_reply(connection, replies, correlation_id)
         except pika.exceptions.AMQPError as ex:
             print(f"RabbitMQ error -> {ex}")
-            return False
+            # Nothing reached the broker, so a direct send cannot duplicate.
+            return None
         finally:
             if connection is not None and connection.is_open:
                 try:

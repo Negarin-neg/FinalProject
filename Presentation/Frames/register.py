@@ -68,14 +68,14 @@ class RegisterFrame(Frame):
 
         if response.success:
             # The account is NOT created yet - the user must confirm the
-            # one-time code that was just sent to their mobile.
-            messagebox.showinfo("Register", response.message)
-
+            # one-time code that was just sent to their mobile. The OTP frame
+            # shows "code sent to ..." itself, so no message box here.
             mobile = response.data
+            username = self.username_entry.get().strip()
             self.password_entry.clear()
 
             otp_frame = self.main_view.show_frame("otp")
-            otp_frame.start(mobile)
+            otp_frame.start(mobile, username)
         else:
             messagebox.showerror("Registration Failed", response.message)
 

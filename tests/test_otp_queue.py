@@ -28,6 +28,23 @@ class QueueSmsSenderTests(unittest.TestCase):
         sender = QueueSmsSender(FakeQueue(result=False))
         self.assertFalse(sender.send_otp("09121234567", "12345"))
 
+    def test_send_falls_back_when_nothing_was_published(self):
+        # result=None means "no worker attached / broker unreachable".
+        queue = FakeQueue(result=None)
+        fallback = FakeSmsSender(result=True)
+        sender = QueueSmsSender(queue, fallback_sender=fallback)
+
+        self.assertTrue(sender.send_otp("09121234567", "12345"))
+        self.assertEqual(fallback.sent, [("09121234567", "12345")])
+
+    def test_worker_failure_is_not_retried_directly(self):
+        # The job did reach a worker, so a second send could duplicate it.
+        fallback = FakeSmsSender(result=True)
+        sender = QueueSmsSender(FakeQueue(result=False), fallback_sender=fallback)
+
+        self.assertFalse(sender.send_otp("09121234567", "12345"))
+        self.assertEqual(fallback.sent, [])
+
 
 class FakeSmsSender:
     def __init__(self, result=True):

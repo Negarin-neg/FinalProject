@@ -11,8 +11,14 @@ class IotpQueue(ABC):
     """
 
     @abstractmethod
-    def enqueue(self, mobile: str, code: str) -> bool:
-        """Publishes an OTP job and returns True only when the worker
-        confirmed the SMS was actually accepted by the provider. It must
-        return False when the broker is unreachable or the send failed."""
+    def enqueue(self, mobile: str, code: str):
+        """Publishes an OTP job and reports what happened.
+
+        True  -> the worker confirmed the provider accepted the SMS.
+        False -> the job was published but the worker reported a failure
+                 (or never confirmed in time).
+        None  -> nothing was published at all (no worker consuming the queue,
+                 or the broker is unreachable), so the caller may safely fall
+                 back to sending the SMS directly.
+        """
         pass

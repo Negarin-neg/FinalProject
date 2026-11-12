@@ -4,13 +4,14 @@ import requests
 
 from Common.Repositories.ismssender import ISmsSender
 
-# sms.ir "Verify" (pattern) endpoint - used for OTP / verification codes.
-# Docs: https://sms.ir/rest-api/  (section: ارسال VERIFY)
+# sms.ir "Bulk" endpoint - the message is plain text, exactly like the class
+# sample (NotificationMicroservice) sends it, so no panel template is needed.
+# Docs: https://sms.ir/rest-api/
 DEFAULT_BASE_URL = "https://api.sms.ir"
-VERIFY_SEND_PATH = "/v1/send/verify"
+BULK_SEND_PATH = "/v1/send/bulk"
 
-# Template placeholder name (inside the panel template, written as #CODE#).
-DEFAULT_OTP_ATTRIBUTE = "Code"
+# Text of the OTP message. Override with SMS_OTP_MESSAGE_TEMPLATE in .env.
+DEFAULT_OTP_MESSAGE_TEMPLATE = "کد تأیید شما: {code}"
 
 REQUEST_TIMEOUT_SECONDS = 15
 
@@ -37,52 +38,51 @@ STATUS_MESSAGES = {
 
 
 class SmsIrSender(ISmsSender):
-    """Sends OTP SMS through the sms.ir (app.sms.ir) web service.
+    """Sends the OTP as an ordinary text SMS through the sms.ir bulk endpoint.
 
-    All secrets and account-specific values come from the environment
-    (.env): SMS_API_KEY, SMS_PATTERN_CODE. Nothing is hardcoded here.
+    All account-specific values come from the environment (.env):
+    SMS_API_KEY and SMS_LINE_NUMBER. Nothing is hardcoded here.
     """
 
     def __init__(
         self,
         api_key: str = None,
-        template_id=None,
+        line_number=None,
         base_url: str = None,
-        otp_attribute: str = None,
+        message_template: str = None,
     ):
         self.api_key = api_key or os.getenv("SMS_API_KEY")
-        # In sms.ir this is the numeric template id, not a pattern code string.
-        self.template_id = template_id if template_id is not None else os.getenv("SMS_PATTERN_CODE")
+        self.line_number = line_number if line_number is not None else os.getenv("SMS_LINE_NUMBER")
         self.base_url = (base_url or os.getenv("SMS_API_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
-        self.otp_attribute = otp_attribute or os.getenv("SMS_OTP_ATTRIBUTE") or DEFAULT_OTP_ATTRIBUTE
+        self.message_template = (
+            message_template or os.getenv("SMS_OTP_MESSAGE_TEMPLATE") or DEFAULT_OTP_MESSAGE_TEMPLATE
+        )
 
     def is_configured(self) -> bool:
-        return bool(self.api_key and self.template_id)
+        return bool(self.api_key and self.line_number)
 
     def send_otp(self, mobile: str, code: str) -> bool:
         if not self.is_configured():
             # Never pretend the SMS was sent when the gateway is not set up.
-            print("SMS is not configured (SMS_API_KEY / SMS_PATTERN_CODE).")
+            print("SMS is not configured (SMS_API_KEY / SMS_LINE_NUMBER).")
             return False
 
         payload = {
-            "mobile": self._normalize_mobile(mobile),
-            "templateId": self._as_template_id(),
-            "parameters": [
-                {"name": self.otp_attribute, "value": str(code)},
-            ],
+            "lineNumber": self._as_line_number(),
+            "MessageText": self._build_message(code),
+            "Mobiles": [self._normalize_mobile(mobile)],
         }
 
-        # sms.ir authenticates with the x-api-key header.
+        # sms.ir authenticates with the X-API-KEY header.
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "x-api-key": self.api_key,
+            "X-API-KEY": self.api_key,
         }
 
         try:
             response = requests.post(
-                f"{self.base_url}{VERIFY_SEND_PATH}",
+                f"{self.base_url}{BULK_SEND_PATH}",
                 json=payload,
                 headers=headers,
                 timeout=REQUEST_TIMEOUT_SECONDS,
@@ -94,12 +94,19 @@ class SmsIrSender(ISmsSender):
 
         return self._is_success(response)
 
-    def _as_template_id(self):
-        """sms.ir expects an integer templateId; tolerate a string from .env."""
+    def _build_message(self, code: str) -> str:
         try:
-            return int(str(self.template_id).strip())
+            return self.message_template.format(code=code)
+        except (KeyError, IndexError, ValueError):
+            # A mistyped template must never break the registration flow.
+            return str(code)
+
+    def _as_line_number(self):
+        """sms.ir expects an integer lineNumber; tolerate a string from .env."""
+        try:
+            return int(str(self.line_number).strip())
         except (TypeError, ValueError):
-            return self.template_id
+            return self.line_number
 
     @staticmethod
     def _normalize_mobile(mobile: str) -> str:

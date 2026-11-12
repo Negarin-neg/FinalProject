@@ -13,6 +13,21 @@ if TYPE_CHECKING:
 # server (OtpService), this is only for the user's convenience.
 COUNTDOWN_TICK_MS = 1000
 
+# Number of middle digits hidden in the confirmation message.
+MASKED_DIGITS = 5
+
+
+def mask_mobile(mobile: str) -> str:
+    """Hides the middle digits of a mobile number: 09121234567 -> 091*****567."""
+    digits = "".join(ch for ch in str(mobile or "") if ch.isdigit())
+
+    if len(digits) <= MASKED_DIGITS:
+        return "*" * len(digits)
+
+    start = (len(digits) - MASKED_DIGITS) // 2
+    end = start + MASKED_DIGITS
+    return f"{digits[:start]}{'*' * MASKED_DIGITS}{digits[end:]}"
+
 
 class OtpFrame(Frame):
     """Confirms the one-time code that protects first-time registration."""
@@ -24,6 +39,7 @@ class OtpFrame(Frame):
         self.user_business = user_business
 
         self.mobile = None
+        self.username = None
         self.seconds_left = 0
         self._tick_job = None
 
@@ -32,13 +48,22 @@ class OtpFrame(Frame):
         self.title_label = Label(self, text="OTP Verification")
         self.title_label.grid(row=0, column=0, columnspan=2, pady=(15, 5), padx=10)
 
-        self.info_label = Label(self, text="", fg="gray", wraplength=280, justify="center")
+        # The "code was sent to ..." notice lives on the frame itself - never
+        # in a message box - so the user always sees which number to check.
+        self.info_label = Label(
+            self,
+            text="",
+            fg="#0b5d1e",
+            font=("TkDefaultFont", 10, "bold"),
+            wraplength=300,
+            justify="center",
+        )
         self.info_label.grid(row=1, column=0, columnspan=2, pady=(0, 10), padx=10)
 
         self.code_label = Label(self, text="Verification Code")
         self.code_label.grid(row=2, column=0, pady=(0, 10), padx=10, sticky="e")
 
-        self.code_entry = Entry(self, justify="center")
+        self.code_entry = Entry(self, justify="center", width=12, font=("TkDefaultFont", 12))
         self.code_entry.grid(row=2, column=1, pady=(0, 10), padx=(0, 10), sticky="ew")
         self.code_entry.bind("<Return>", lambda event: self.verify_button_clicked())
 
@@ -58,13 +83,17 @@ class OtpFrame(Frame):
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def start(self, mobile: str):
+    def start(self, mobile: str, username: str = None):
         """Called by RegisterFrame right after the first code was sent."""
         self.mobile = mobile
-        self.info_label.config(text=f"کد تأیید به شماره {mobile} ارسال شد.")
+        self.username = username
+        self._show_sent_notice()
         self.code_entry.delete(0, "end")
         self._restart_countdown()
         self.code_entry.focus_set()
+
+    def _show_sent_notice(self):
+        self.info_label.config(text=f"کد به {mask_mobile(self.mobile)} ارسال شده")
 
     def _stop_countdown(self):
         if self._tick_job is not None:
@@ -110,10 +139,17 @@ class OtpFrame(Frame):
 
         if response.success:
             self._stop_countdown()
-            messagebox.showinfo("OTP", response.message)
-            # Clear the registration form now that the account really exists.
+            messagebox.showinfo("ثبت نام", response.message)
+
+            # Clear the registration form now that the account really exists
+            # and take the user straight to the login page.
             self.main_view.get_frame("register").clear_fields()
-            self.main_view.show_frame("login")
+            self.code_entry.delete(0, "end")
+            self.info_label.config(text="")
+
+            login_frame = self.main_view.show_frame("login")
+            if self.username:
+                login_frame.prefill_username(self.username)
             return
 
         messagebox.showerror("OTP", response.message)
@@ -133,7 +169,8 @@ class OtpFrame(Frame):
         response = self.user_business.resend_registration_otp(self.mobile)
 
         if response.success:
-            messagebox.showinfo("OTP", response.message)
+            # Same on-frame notice as the first send - no message box.
+            self._show_sent_notice()
             self.code_entry.delete(0, "end")
             self._restart_countdown()
         else:
