@@ -58,6 +58,9 @@ class InMemoryEmployeeRepository(IEmployeeRepository):
                 return self._copy(employee)
         return None
 
+    def get_all(self):
+        return [self._copy(employee) for employee in self.employees.values()]
+
     def insert(self, employee: Employee):
         employee.id = self._next_id
         self._next_id += 1

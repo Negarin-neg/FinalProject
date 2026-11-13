@@ -1,21 +1,18 @@
 from tkinter import Button, Frame, Label, messagebox
 from tkinter.ttk import Treeview
 
-from Presentation.API.Client.account_api_client import (
-    AccountApiClient,
-    AccountApiError,
-)
+from BusinessLogic.account_business_logic import AccountBusinessLogic
 from Presentation.Component.statement_export import export_statement
 
 
 class TransactionManagement(Frame):
     """Statement screen for one selected account."""
 
-    def __init__(self, window, main_view, account_api_client: AccountApiClient):
+    def __init__(self, window, main_view, account_business: AccountBusinessLogic):
         super().__init__(window)
 
         self.main_view = main_view
-        self.account_api_client = account_api_client
+        self.account_business = account_business
         self.account = None
         self.statement = None
 
@@ -85,18 +82,13 @@ class TransactionManagement(Frame):
 
         self.status_label.config(text="")
 
-        try:
-            statement = self.account_api_client.get_statement(account.id)
-        except AccountApiError as ex:
-            messagebox.showerror("Account Statement", str(ex))
-            return
-        except Exception:
-            messagebox.showerror(
-                "Account Statement",
-                "An unexpected error occurred while loading the statement.",
-            )
+        response = self.account_business.get_statement(account.id)
+
+        if not response.success:
+            messagebox.showerror("Account Statement", response.message)
             return
 
+        statement = response.data
         self.statement = statement
 
         for row in statement.rows:
@@ -136,7 +128,7 @@ class TransactionManagement(Frame):
             messagebox.showinfo("Export Statement", "Please select an account first.")
             return
 
-        export_statement(self.account, self.account_api_client)
+        export_statement(self.account, self.account_business)
 
     def back_button_clicked(self):
         account_management = self.main_view.show_frame("account_management")

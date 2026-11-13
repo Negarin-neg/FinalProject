@@ -64,6 +64,27 @@ class UserBusinessLogic:
 
         return Response(False, "Invalid username or password")
 
+    def get_employee_list(self, requester: Employee = None):
+        """Returns every employee with their role and status.
+
+        Only an active administrator may see the list, so the rule is
+        enforced here rather than only by hiding the button in the UI.
+        """
+        if (
+            requester is None
+            or requester.role != Roles.ADMINISTRATOR
+            or requester.status != EmployeeStatus.Active
+        ):
+            return Response(
+                False, "Only administrators can view the employee list."
+            )
+
+        try:
+            employees = self.employee_repository.get_all()
+            return Response(True, None, employees)
+        except Exception:
+            return Response(False, "The employee list could not be loaded.")
+
     def register(self, first_name: str, last_name: str, mobile: str, username: str, password: str):
         """Validates a new sign-up and starts OTP verification.
 

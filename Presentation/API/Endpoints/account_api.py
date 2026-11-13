@@ -5,11 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response as RawResponse
 
 from BusinessLogic.account_business_logic import AccountBusinessLogic
-from Common.Entities.employee import Employee
-from Presentation.API.DI.account_dependency_injection import (
-    get_account_business_logic,
-    get_current_employee,
-)
+from Presentation.API.DI.account_dependency_injection import get_account_business_logic
 from Presentation.API.DTOs.account import (
     AccountResponse,
     StatementResponse,
@@ -26,7 +22,6 @@ def get_accounts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     business_logic: AccountBusinessLogic = Depends(get_account_business_logic),
-    employee: Employee = Depends(get_current_employee),
 ):
     response = business_logic.get_account_list(search, page, page_size)
 
@@ -40,7 +35,6 @@ def get_accounts(
 def get_statement(
     account_id: int,
     business_logic: AccountBusinessLogic = Depends(get_account_business_logic),
-    employee: Employee = Depends(get_current_employee),
 ):
     response = business_logic.get_statement(account_id)
 
@@ -55,7 +49,6 @@ def get_statement(
 def get_statement_pdf(
     account_id: int,
     business_logic: AccountBusinessLogic = Depends(get_account_business_logic),
-    employee: Employee = Depends(get_current_employee),
 ):
     statement_response = business_logic.get_statement(account_id)
 

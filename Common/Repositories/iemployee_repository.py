@@ -20,6 +20,10 @@ class IEmployeeRepository(ABC):
         pass
 
     @abstractmethod
+    def get_all(self):
+        pass
+
+    @abstractmethod
     def insert(self, employee: Employee):
         pass
 

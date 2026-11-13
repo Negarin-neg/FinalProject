@@ -1,10 +1,7 @@
 from tkinter import Button, Entry, Frame, Label, messagebox
 from tkinter.ttk import Treeview
 
-from Presentation.API.Client.account_api_client import (
-    AccountApiClient,
-    AccountApiError,
-)
+from BusinessLogic.account_business_logic import AccountBusinessLogic
 from Presentation.Component.statement_export import export_statement
 
 
@@ -16,20 +13,23 @@ class AccountManagement(Frame):
     Opening Date and Owner. The only extra action is PDF statement export.
     """
 
-    def __init__(self, window, main_view, account_api_client: AccountApiClient):
+    def __init__(self, window, main_view, account_business: AccountBusinessLogic):
         super().__init__(window)
 
         self.main_view = main_view
-        self.account_api_client = account_api_client
+        self.account_business = account_business
         self.accounts = {}
 
         for column in range(5):
             self.grid_columnconfigure(column, weight=1)
         self.grid_rowconfigure(2, weight=1)
 
+        self.back_button = Button(self, text="Back", command=self.back_button_clicked)
+        self.back_button.grid(row=0, column=0, pady=10, padx=10, sticky="ew")
+
         self.search_entry = Entry(self, justify="left")
         self.search_entry.grid(
-            row=0, column=0, columnspan=4, pady=10, padx=10, sticky="ew"
+            row=0, column=1, columnspan=3, pady=10, padx=10, sticky="ew"
         )
         self.search_entry.bind("<Return>", lambda event: self.search_button_clicked())
 
@@ -109,17 +109,13 @@ class AccountManagement(Frame):
         self.accounts = {}
         self.status_label.config(text="")
 
-        try:
-            accounts = self.account_api_client.get_accounts(search)
-        except AccountApiError as ex:
-            messagebox.showerror("Customer Accounts", str(ex))
+        response = self.account_business.get_account_list(search)
+
+        if not response.success:
+            messagebox.showerror("Customer Accounts", response.message)
             return
-        except Exception:
-            messagebox.showerror(
-                "Customer Accounts",
-                "An unexpected error occurred while loading customer accounts.",
-            )
-            return
+
+        accounts = response.data or []
 
         for index, account in enumerate(accounts, start=1):
             self.accounts[account.id] = account
@@ -154,7 +150,10 @@ class AccountManagement(Frame):
         if account is None:
             return
 
-        export_statement(account, self.account_api_client)
+        export_statement(account, self.account_business)
+
+    def back_button_clicked(self):
+        self.main_view.show_frame("home")
 
     def selected_account(self):
         selection = self.account_treeview.selection()

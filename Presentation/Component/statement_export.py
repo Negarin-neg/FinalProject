@@ -1,13 +1,10 @@
 import os
 from tkinter import filedialog, messagebox
 
-from Presentation.API.Client.account_api_client import (
-    AccountApiClient,
-    AccountApiError,
-)
+from BusinessLogic.account_business_logic import AccountBusinessLogic
 
 
-def export_statement(account, account_api_client: AccountApiClient):
+def export_statement(account, account_business: AccountBusinessLogic):
     """Ask for a destination and save the selected account's PDF statement."""
     pdf_path = filedialog.asksaveasfilename(
         defaultextension=".pdf",
@@ -19,15 +16,12 @@ def export_statement(account, account_api_client: AccountApiClient):
     if not pdf_path:
         return
 
-    try:
-        account_api_client.download_statement_pdf(account.id, pdf_path)
-    except (AccountApiError, OSError) as ex:
-        messagebox.showerror("Export Statement", str(ex))
-        return
-    except Exception:
+    response = account_business.generate_statement_pdf(account.id, pdf_path)
+
+    if not response.success:
         messagebox.showerror(
             "Export Statement",
-            "The statement could not be exported. Please try again.",
+            response.message or "The statement could not be exported.",
         )
         return
 

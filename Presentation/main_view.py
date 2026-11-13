@@ -5,6 +5,7 @@ from Presentation.Frames.otp import OtpFrame
 from Presentation.Frames.home import HomeFrame
 from Presentation.Frames.profile import ProfileFrame
 from Presentation.Frames.account_management import AccountManagement
+from Presentation.Frames.employee_management import EmployeeManagement
 from Presentation.Frames.transactions import TransactionManagement
 from tkinter import Frame
 
@@ -12,10 +13,10 @@ from tkinter import Frame
 
 
 class MainView:
-    def __init__(self, user_business, account_api_client):
+    def __init__(self, user_business, account_business):
         self.frames = {}
         self.user_business = user_business
-        self.account_api_client = account_api_client
+        self.account_business = account_business
 
         self.window = Window("Core Banking")
 
@@ -25,13 +26,19 @@ class MainView:
         self.add_frame("profile", ProfileFrame(self.window, self, user_business), 680, 570)
         self.add_frame(
             "transactions",
-            TransactionManagement(self.window, self, account_api_client),
+            TransactionManagement(self.window, self, account_business),
             900,
             520,
         )
         self.add_frame(
             "account_management",
-            AccountManagement(self.window, self, account_api_client),
+            AccountManagement(self.window, self, account_business),
+            900,
+            520,
+        )
+        self.add_frame(
+            "employee_management",
+            EmployeeManagement(self.window, self, user_business),
             900,
             520,
         )

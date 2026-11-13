@@ -1,17 +1,10 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from Common.DTOs.statement import AccountStatement, StatementRow
 from Common.Entities.account import Account
-from Common.Enums.transaction_type import TransactionType
-
-
-class CreateTransactionRequest(BaseModel):
-    account_id: int = Field(gt=0)
-    amount: Decimal = Field(gt=0)
-    transaction_type: TransactionType
 
 
 class AccountResponse(BaseModel):

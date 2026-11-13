@@ -29,6 +29,14 @@ class SQLAlchemyEmployeeRepository(IEmployeeRepository):
     def get_by_mobile(self, mobile: str) -> Employee:
         return self._get_one(EmployeeModel.mobile == mobile)
 
+    def get_all(self):
+        with create_session() as session:
+            models = session.scalars(
+                select(EmployeeModel).order_by(EmployeeModel.id)
+            ).all()
+
+            return [self._to_entity(model) for model in models]
+
     def insert(self, employee: Employee):
         with create_session() as session:
             model = EmployeeModel(

@@ -3,10 +3,11 @@ import os
 from dotenv import load_dotenv
 
 from Presentation.main_view import MainView
-from Presentation.API.Client.account_api_client import AccountApiClient
+from BusinessLogic.account_business_logic import AccountBusinessLogic
 from BusinessLogic.otp_service import OtpService
 from BusinessLogic.photo_service import PhotoService
 from BusinessLogic.user_business_logic import UserBusinessLogic
+from DataAccess.Repositories.SQLAlchemy.account_repository import SQLAlchemyAccountRepository
 from DataAccess.Repositories.SQLAlchemy.employee_repository import SQLAlchemyEmployeeRepository
 from DataAccess.Services.queue_sms_sender import QueueSmsSender
 from DataAccess.Services.rabbitmq_otp_queue import RabbitMqOtpQueue
@@ -16,7 +17,8 @@ load_dotenv()
 
 # Composition root: repositories, external services and business logic are
 # wired here only, so no layer reaches out for its own dependencies.
-repository = SQLAlchemyEmployeeRepository()
+employee_repository = SQLAlchemyEmployeeRepository()
+account_repository = SQLAlchemyAccountRepository()
 
 # OTP delivery can go straight to sms.ir or (default) through RabbitMQ so the
 # queue is visible in the management dashboard. Set SMS_USE_QUEUE=false in
@@ -35,12 +37,14 @@ photo_storage_dir = os.getenv("PROFILE_PHOTO_DIR", os.path.join("storage", "prof
 photo_service = PhotoService(photo_storage_dir)
 
 user_business = UserBusinessLogic(
-    repository,
+    employee_repository,
     sms_sender=sms_sender,
     otp_service=OtpService(),
     photo_service=photo_service,
 )
 
-account_api_client = AccountApiClient()
+# The desktop application talks to the local database through the business
+# logic layer, exactly like the class project - no API URL is involved.
+account_business = AccountBusinessLogic(account_repository)
 
-MainView(user_business, account_api_client)
+MainView(user_business, account_business)

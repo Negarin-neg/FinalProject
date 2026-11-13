@@ -28,7 +28,9 @@ class HomeFrame(Frame):
 
         # Which of these two buttons is visible depends on the role
         # (see set_current_employee).
-        self.employee_management = Button(self, text="Employee Management", command=self.not_implemented_clicked)
+        self.employee_management = Button(
+            self, text="Employee Management", command=self.employee_management_clicked
+        )
 
         self.account_management = Button(self, text="Account Management", command=self.account_management_clicked)
 
@@ -48,7 +50,6 @@ class HomeFrame(Frame):
         # Show the employee's stored photo (or the placeholder when absent).
         photo_bytes = self.main_view.user_business.get_profile_photo(self.current_employee.id)
         self.photo_view.set_photo(photo_bytes)
-        self.main_view.account_api_client.set_employee(self.current_employee.id)
 
         match self.current_employee.role:
             case Roles.ADMINISTRATOR:
@@ -70,6 +71,10 @@ class HomeFrame(Frame):
     def not_implemented_clicked(self):
         messagebox.showinfo("Coming soon", "This section is not implemented yet.")
 
+    def employee_management_clicked(self):
+        employee_management = self.main_view.show_frame("employee_management")
+        employee_management.load(self.current_employee)
+
     def account_management_clicked(self):
         account_management = self.main_view.show_frame("account_management")
         account_management.load_account_list()
@@ -77,5 +82,4 @@ class HomeFrame(Frame):
     def logout_button_clicked(self):
         self.current_employee = None
         self.photo_view.set_photo(None)
-        self.main_view.account_api_client.clear_employee()
         self.main_view.show_frame("login")
