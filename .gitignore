@@ -28,3 +28,6 @@ dist/
 
 # Uploaded profile photos
 storage/
+
+#   AI tests
+tests/

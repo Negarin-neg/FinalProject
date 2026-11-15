@@ -1,4 +1,5 @@
 import os
+import random
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from xml.sax.saxutils import escape
@@ -13,10 +14,19 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 from Common.DTOs.response import Response
 from Common.DTOs.statement import AccountStatement, StatementRow
+from Common.Entities.employee import Employee
+from Common.Enums.employee_status import EmployeeStatus
+from Common.Enums.role import Roles
 from Common.Enums.transaction_type import TransactionType
 from Common.Repositories.iaccount_repository import IAccountRepository
 
 _FONT_NAME, _FONT_BOLD = "Helvetica", "Helvetica-Bold"
+
+# Both the administrator and the employee (BANKER) role may manage customers.
+ACCOUNT_MANAGEMENT_ROLES = (Roles.ADMINISTRATOR, Roles.BANKER)
+
+ACCOUNT_NUMBER_MIN_LENGTH = 5
+ACCOUNT_NUMBER_MAX_LENGTH = 20
 
 
 def _register_unicode_fonts():
@@ -117,6 +127,158 @@ class AccountBusinessLogic:
             return Response(True, "Transaction completed successfully.", None)
         except Exception:
             return Response(False, "The transaction could not be completed.")
+
+    # ------------------------------------------------------------------
+    # Customer accounts - create / update / delete
+    # ------------------------------------------------------------------
+
+    def create_account(
+        self,
+        requester: Employee,
+        first_name: str,
+        last_name: str,
+        account_number: str = "",
+    ):
+        """Creates a new customer together with their first account."""
+        permission_error = self._get_permission_error(requester)
+        if permission_error:
+            return Response(False, permission_error)
+
+        first_name = (first_name or "").strip()
+        last_name = (last_name or "").strip()
+        account_number = (account_number or "").strip()
+
+        if not first_name:
+            return Response(False, "First name is required.")
+
+        if account_number:
+            number_error = self._get_account_number_format_error(account_number)
+            if number_error:
+                return Response(False, number_error)
+
+            if self.account_repository.get_account_by_number(account_number):
+                return Response(False, "This account number is already in use.")
+
+        try:
+            if not account_number:
+                account_number = self._generate_account_number()
+
+            customer_id = self.account_repository.insert_customer(first_name, last_name)
+            account_id = self.account_repository.insert_account(
+                customer_id, account_number, datetime.now()
+            )
+            account = self.account_repository.get_account_by_id(account_id)
+        except Exception:
+            return Response(False, "The account could not be created.")
+
+        return Response(
+            True,
+            f'Account {account_number} was created for "{_full_name(first_name, last_name)}".',
+            account,
+        )
+
+    def update_account(
+        self,
+        requester: Employee,
+        account_id: int,
+        first_name: str,
+        last_name: str,
+        account_number: str,
+    ):
+        """Saves every editable field of the selected account."""
+        permission_error = self._get_permission_error(requester)
+        if permission_error:
+            return Response(False, permission_error)
+
+        account = self.account_repository.get_account_by_id(account_id)
+        if account is None:
+            return Response(False, "Account not found.")
+
+        first_name = (first_name or "").strip()
+        last_name = (last_name or "").strip()
+        account_number = (account_number or "").strip()
+
+        if not first_name:
+            return Response(False, "First name is required.")
+
+        number_error = self._get_account_number_format_error(account_number)
+        if number_error:
+            return Response(False, number_error)
+
+        # The account's own number does not count as a duplicate.
+        if account_number != account.account_number:
+            existing = self.account_repository.get_account_by_number(account_number)
+            if existing is not None and existing.id != account_id:
+                return Response(False, "This account number is already in use.")
+
+        try:
+            self.account_repository.update_account(
+                account_id, account_number, first_name, last_name
+            )
+            updated = self.account_repository.get_account_by_id(account_id)
+        except Exception:
+            return Response(False, "The account could not be updated.")
+
+        return Response(True, "The account was updated successfully.", updated)
+
+    def delete_account(self, requester: Employee, account_id: int):
+        """Deletes the account (and its transactions) from the database."""
+        permission_error = self._get_permission_error(requester)
+        if permission_error:
+            return Response(False, permission_error)
+
+        account = self.account_repository.get_account_by_id(account_id)
+        if account is None:
+            return Response(False, "Account not found.")
+
+        try:
+            deleted = self.account_repository.delete_account(account_id)
+        except Exception:
+            return Response(False, "The account could not be deleted.")
+
+        if not deleted:
+            return Response(False, "Account not found.")
+
+        return Response(
+            True,
+            f'Account "{account.account_number}" was deleted successfully.',
+        )
+
+    def _get_permission_error(self, requester: Employee):
+        if (
+            requester is None
+            or requester.role not in ACCOUNT_MANAGEMENT_ROLES
+            or requester.status != EmployeeStatus.Active
+        ):
+            return "Only active administrators and employees can manage customer accounts."
+
+        return None
+
+    @staticmethod
+    def _get_account_number_format_error(account_number: str):
+        if not account_number.isdigit():
+            return "Account number must contain digits only."
+
+        if not (
+            ACCOUNT_NUMBER_MIN_LENGTH
+            <= len(account_number)
+            <= ACCOUNT_NUMBER_MAX_LENGTH
+        ):
+            return (
+                "Account number must be between "
+                f"{ACCOUNT_NUMBER_MIN_LENGTH} and {ACCOUNT_NUMBER_MAX_LENGTH} digits."
+            )
+
+        return None
+
+    def _generate_account_number(self) -> str:
+        """Builds a free 11-digit number in the same shape as the seeded data."""
+        for _ in range(50):
+            candidate = "45" + "".join(str(random.randint(0, 9)) for _ in range(9))
+            if self.account_repository.get_account_by_number(candidate) is None:
+                return candidate
+
+        raise RuntimeError("A free account number could not be generated.")
 
     def generate_statement_pdf(self, account_id: int, file_path: str):
         response = self.get_statement(account_id)
@@ -338,6 +500,10 @@ class AccountBusinessLogic:
 
 def _money(value: Decimal) -> str:
     return f"{value:,.2f}"
+
+
+def _full_name(first_name: str, last_name: str) -> str:
+    return f"{first_name} {last_name}".strip()
 
 
 def _draw_page_number(canvas, document):

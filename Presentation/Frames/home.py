@@ -77,7 +77,7 @@ class HomeFrame(Frame):
 
     def account_management_clicked(self):
         account_management = self.main_view.show_frame("account_management")
-        account_management.load_account_list()
+        account_management.load(self.current_employee)
 
     def logout_button_clicked(self):
         self.current_employee = None

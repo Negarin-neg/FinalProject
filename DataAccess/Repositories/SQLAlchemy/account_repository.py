@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 
 from Common.Entities.account import Account
 from Common.Entities.customer import Customer
@@ -40,6 +40,13 @@ class SQLAlchemyAccountRepository(IAccountRepository):
     def get_account_by_id(self, account_id: int) -> Account:
         with create_session() as session:
             model = session.get(AccountModel, account_id)
+            return self._to_account(model) if model else None
+
+    def get_account_by_number(self, account_number: str) -> Account:
+        with create_session() as session:
+            model = session.scalars(
+                select(AccountModel).where(AccountModel.account_number == account_number)
+            ).first()
             return self._to_account(model) if model else None
 
     def get_transaction_by_account_id(self, account_id: int):
@@ -82,6 +89,74 @@ class SQLAlchemyAccountRepository(IAccountRepository):
             session.add(model)
             session.flush()
             return model.id
+
+    def insert_customer(self, first_name: str, last_name: str) -> int:
+        with create_session() as session:
+            model = CustomerModel(first_name=first_name, last_name=last_name)
+            session.add(model)
+            session.flush()
+            return model.id
+
+    def insert_account(self, customer_id: int, account_number: str, opening_date) -> int:
+        with create_session() as session:
+            customer_model = session.get(CustomerModel, customer_id)
+            if customer_model is None:
+                raise LookupError(f"Customer {customer_id} does not exist.")
+
+            model = AccountModel(
+                account_number=account_number,
+                customer_id=customer_id,
+                opening_date=opening_date,
+            )
+            session.add(model)
+            session.flush()
+            return model.id
+
+    def update_account(
+        self,
+        account_id: int,
+        account_number: str,
+        first_name: str,
+        last_name: str,
+    ):
+        with create_session() as session:
+            account_model = session.get(AccountModel, account_id)
+            if account_model is None:
+                raise LookupError(f"Account {account_id} does not exist.")
+
+            account_model.account_number = account_number
+
+            customer_model = session.get(CustomerModel, account_model.customer_id)
+            if customer_model is not None:
+                customer_model.first_name = first_name
+                customer_model.last_name = last_name
+
+    def delete_account(self, account_id: int) -> bool:
+        """Removes the account, its transactions and - when the customer has
+        no other account left - the customer row itself."""
+        with create_session() as session:
+            account_model = session.get(AccountModel, account_id)
+            if account_model is None:
+                return False
+
+            customer_id = account_model.customer_id
+
+            # Transactions reference the account, so they go first.
+            session.execute(
+                delete(TransactionModel).where(TransactionModel.account_id == account_id)
+            )
+            session.delete(account_model)
+            session.flush()
+
+            remaining_accounts = session.scalars(
+                select(AccountModel).where(AccountModel.customer_id == customer_id)
+            ).first()
+            if remaining_accounts is None:
+                customer_model = session.get(CustomerModel, customer_id)
+                if customer_model is not None:
+                    session.delete(customer_model)
+
+            return True
 
     @staticmethod
     def _to_account(model: AccountModel) -> Account:

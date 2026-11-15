@@ -50,6 +50,8 @@ class SQLAlchemyEmployeeRepository(IEmployeeRepository):
                 photo_path=employee.photo_path,
             )
             session.add(model)
+            session.flush()
+            return model.id
 
     def update_profile(self, employee: Employee):
         with create_session() as session:
@@ -65,6 +67,42 @@ class SQLAlchemyEmployeeRepository(IEmployeeRepository):
             model.username = employee.username
             model.password = employee.password
             model.mobile = employee.mobile
+
+    def update(self, employee: Employee):
+        """Full update used by an administrator: every column can change,
+        including the role and the status."""
+        with create_session() as session:
+            model = session.get(EmployeeModel, employee.id)
+
+            if model is None:
+                raise LookupError(f"Employee {employee.id} does not exist.")
+
+            model.first_name = employee.first_name
+            model.last_name = employee.last_name
+            model.username = employee.username
+            model.password = employee.password
+            model.mobile = employee.mobile
+            model.employee_status_id = employee.status.value
+            model.role_id = employee.role.value if employee.role else None
+
+    def update_status(self, employee_id: int, employee_status_id: int):
+        with create_session() as session:
+            model = session.get(EmployeeModel, employee_id)
+
+            if model is None:
+                raise LookupError(f"Employee {employee_id} does not exist.")
+
+            model.employee_status_id = employee_status_id
+
+    def delete(self, employee_id: int) -> bool:
+        with create_session() as session:
+            model = session.get(EmployeeModel, employee_id)
+
+            if model is None:
+                return False
+
+            session.delete(model)
+            return True
 
     def update_photo_path(self, employee_id: int, photo_path):
         with create_session() as session:

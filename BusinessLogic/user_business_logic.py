@@ -85,6 +85,247 @@ class UserBusinessLogic:
         except Exception:
             return Response(False, "The employee list could not be loaded.")
 
+    # ------------------------------------------------------------------
+    # Employee management (administrator only)
+    # ------------------------------------------------------------------
+
+    def create_employee(
+        self,
+        requester: Employee,
+        first_name: str,
+        last_name: str,
+        mobile: str,
+        username: str,
+        password: str,
+        role,
+        status,
+    ):
+        """Adds a new employee account. Only an administrator may call this."""
+        permission_error = self._get_admin_error(requester)
+        if permission_error:
+            return Response(False, permission_error)
+
+        first_name = (first_name or "").strip()
+        last_name = (last_name or "").strip()
+        mobile = (mobile or "").strip()
+        username = (username or "").strip()
+
+        profile_error = self._get_profile_fields_error(first_name, last_name, mobile, username)
+        if profile_error:
+            return Response(False, profile_error)
+
+        password_error = self._get_password_error(password or "")
+        if password_error:
+            return Response(False, password_error)
+
+        role = self._to_enum(Roles, role)
+        if role is None:
+            return Response(False, "Please select a valid role.")
+
+        status = self._to_enum(EmployeeStatus, status)
+        if status is None:
+            return Response(False, "Please select a valid status.")
+
+        if self.employee_repository.get_by_mobile(mobile):
+            return Response(False, "This mobile number is already registered.")
+
+        if self.employee_repository.get_by_username(username):
+            return Response(False, "This username is already taken.")
+
+        employee = Employee(
+            None,
+            first_name,
+            last_name,
+            username,
+            md5(password.encode()).hexdigest(),
+            mobile,
+            status.value,
+            role.value,
+        )
+
+        try:
+            inserted_id = self.employee_repository.insert(employee)
+        except Exception:
+            return Response(False, "The employee could not be created.")
+
+        if inserted_id is not None:
+            employee.id = inserted_id
+
+        return Response(
+            True,
+            f'Employee "{employee.get_fullname()}" was created successfully.',
+            employee,
+        )
+
+    def update_employee(
+        self,
+        requester: Employee,
+        employee_id: int,
+        first_name: str,
+        last_name: str,
+        mobile: str,
+        username: str,
+        role,
+        status,
+        password: str = "",
+    ):
+        """Saves every field of an employee. An empty password keeps the old one."""
+        permission_error = self._get_admin_error(requester)
+        if permission_error:
+            return Response(False, permission_error)
+
+        employee = self.employee_repository.get_by_id(employee_id)
+        if employee is None:
+            return Response(False, "Employee not found.")
+
+        first_name = (first_name or "").strip()
+        last_name = (last_name or "").strip()
+        mobile = (mobile or "").strip()
+        username = (username or "").strip()
+
+        profile_error = self._get_profile_fields_error(first_name, last_name, mobile, username)
+        if profile_error:
+            return Response(False, profile_error)
+
+        role = self._to_enum(Roles, role)
+        if role is None:
+            return Response(False, "Please select a valid role.")
+
+        status = self._to_enum(EmployeeStatus, status)
+        if status is None:
+            return Response(False, "Please select a valid status.")
+
+        # An administrator must not lock themselves out of this screen.
+        if employee.id == requester.id:
+            if role != employee.role:
+                return Response(False, "You cannot change your own role.")
+            if status != employee.status:
+                return Response(False, "You cannot change your own status.")
+
+        if password:
+            password_error = self._get_password_error(password)
+            if password_error:
+                return Response(False, password_error)
+
+        employee_with_same_mobile = self.employee_repository.get_by_mobile(mobile)
+        if employee_with_same_mobile and employee_with_same_mobile.id != employee.id:
+            return Response(False, "This mobile number is already registered.")
+
+        employee_with_same_username = self.employee_repository.get_by_username(username)
+        if employee_with_same_username and employee_with_same_username.id != employee.id:
+            return Response(False, "This username is already taken.")
+
+        employee.first_name = first_name
+        employee.last_name = last_name
+        employee.mobile = mobile
+        employee.username = username
+        employee.role = role
+        employee.status = status
+
+        if password:
+            employee.password = md5(password.encode()).hexdigest()
+
+        try:
+            self.employee_repository.update(employee)
+        except Exception:
+            return Response(False, "The employee could not be updated.")
+
+        return Response(True, "The employee was updated successfully.", employee)
+
+    def update_employee_status(self, requester: Employee, employee_id: int, status):
+        """Changes only the Status column (the dropdown in the employee list)."""
+        permission_error = self._get_admin_error(requester)
+        if permission_error:
+            return Response(False, permission_error)
+
+        status = self._to_enum(EmployeeStatus, status)
+        if status is None:
+            return Response(False, "Please select a valid status.")
+
+        employee = self.employee_repository.get_by_id(employee_id)
+        if employee is None:
+            return Response(False, "Employee not found.")
+
+        if employee.id == requester.id:
+            return Response(False, "You cannot change your own status.")
+
+        if employee.status == status:
+            return Response(True, f'Status is already "{status.name}".', employee)
+
+        try:
+            self.employee_repository.update_status(employee_id, status.value)
+        except Exception:
+            return Response(False, "The status could not be updated.")
+
+        employee.status = status
+
+        return Response(
+            True,
+            f'Status of "{employee.get_fullname()}" was changed to "{status.name}".',
+            employee,
+        )
+
+    def delete_employee(self, requester: Employee, employee_id: int):
+        """Removes the employee row (and the profile photo) from the database."""
+        permission_error = self._get_admin_error(requester)
+        if permission_error:
+            return Response(False, permission_error)
+
+        employee = self.employee_repository.get_by_id(employee_id)
+        if employee is None:
+            return Response(False, "Employee not found.")
+
+        if employee.id == requester.id:
+            return Response(False, "You cannot delete your own account.")
+
+        try:
+            deleted = self.employee_repository.delete(employee_id)
+        except Exception:
+            return Response(False, "The employee could not be deleted.")
+
+        if not deleted:
+            return Response(False, "Employee not found.")
+
+        if self.photo_service is not None:
+            self.photo_service.remove(employee_id)
+
+        return Response(
+            True,
+            f'Employee "{employee.get_fullname()}" was deleted successfully.',
+        )
+
+    @staticmethod
+    def _get_admin_error(requester: Employee):
+        if (
+            requester is None
+            or requester.role != Roles.ADMINISTRATOR
+            or requester.status != EmployeeStatus.Active
+        ):
+            return "Only an active administrator can manage employees."
+
+        return None
+
+    @staticmethod
+    def _to_enum(enum_type, value):
+        """Accepts an enum member, its name (as shown in a dropdown) or its value."""
+        if isinstance(value, enum_type):
+            return value
+
+        if isinstance(value, str):
+            for member in enum_type:
+                if member.name.lower() == value.strip().lower():
+                    return member
+
+            try:
+                value = int(value)
+            except ValueError:
+                return None
+
+        try:
+            return enum_type(value)
+        except (TypeError, ValueError):
+            return None
+
     def register(self, first_name: str, last_name: str, mobile: str, username: str, password: str):
         """Validates a new sign-up and starts OTP verification.
 

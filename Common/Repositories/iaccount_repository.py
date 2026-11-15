@@ -13,9 +13,35 @@ class IAccountRepository(ABC):
         pass
 
     @abstractmethod
+    def get_account_by_number(self, account_number: str) -> Account:
+        pass
+
+    @abstractmethod
     def get_transaction_by_account_id(self, account_id: int):
         pass
 
     @abstractmethod
     def insert_transaction(self, account_id: int, amount, transaction_type):
+        pass
+
+    @abstractmethod
+    def insert_customer(self, first_name: str, last_name: str) -> int:
+        pass
+
+    @abstractmethod
+    def insert_account(self, customer_id: int, account_number: str, opening_date) -> int:
+        pass
+
+    @abstractmethod
+    def update_account(
+        self,
+        account_id: int,
+        account_number: str,
+        first_name: str,
+        last_name: str,
+    ):
+        pass
+
+    @abstractmethod
+    def delete_account(self, account_id: int) -> bool:
         pass

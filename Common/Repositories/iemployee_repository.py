@@ -32,5 +32,17 @@ class IEmployeeRepository(ABC):
         pass
 
     @abstractmethod
+    def update(self, employee: Employee):
+        pass
+
+    @abstractmethod
+    def update_status(self, employee_id: int, employee_status_id: int):
+        pass
+
+    @abstractmethod
+    def delete(self, employee_id: int) -> bool:
+        pass
+
+    @abstractmethod
     def update_photo_path(self, employee_id: int, photo_path):
         pass

@@ -15,6 +15,7 @@ class TransactionManagement(Frame):
         self.account_business = account_business
         self.account = None
         self.statement = None
+        self.current_employee = None
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
@@ -67,8 +68,9 @@ class TransactionManagement(Frame):
         self.status_label = Label(self, text="", anchor="w")
         self.status_label.grid(row=3, column=0, pady=(0, 10), padx=10, sticky="ew")
 
-    def load(self, account):
+    def load(self, account, current_employee=None):
         self.account = account
+        self.current_employee = current_employee
         self.statement = None
         self.account_label.config(
             text=(
@@ -132,4 +134,4 @@ class TransactionManagement(Frame):
 
     def back_button_clicked(self):
         account_management = self.main_view.show_frame("account_management")
-        account_management.load_account_list()
+        account_management.load(self.current_employee)

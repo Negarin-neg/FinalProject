@@ -2,6 +2,7 @@ from tkinter import Button, Entry, Frame, Label, messagebox
 from tkinter.ttk import Treeview
 
 from BusinessLogic.account_business_logic import AccountBusinessLogic
+from Presentation.Component.form_dialog import FormDialog
 from Presentation.Component.statement_export import export_statement
 
 
@@ -10,7 +11,8 @@ class AccountManagement(Frame):
 
     The layout intentionally follows the instructor's AccountManagement frame:
     search box, action buttons on one row, and a table with NO, Account Number,
-    Opening Date and Owner. The only extra action is PDF statement export.
+    Opening Date and Owner. Administrators and employees can create, update and
+    delete customer accounts from here; PDF statement export is also available.
     """
 
     def __init__(self, window, main_view, account_business: AccountBusinessLogic):
@@ -18,7 +20,9 @@ class AccountManagement(Frame):
 
         self.main_view = main_view
         self.account_business = account_business
+        self.current_employee = None
         self.accounts = {}
+        self.last_message = ""
 
         for column in range(5):
             self.grid_columnconfigure(column, weight=1)
@@ -37,21 +41,21 @@ class AccountManagement(Frame):
         self.search_button.grid(row=0, column=4, pady=10, padx=(0, 10), sticky="ew")
 
         self.create_account_button = Button(
-            self, text="Create Account", command=self.not_implemented_clicked
+            self, text="Create Account", command=self.create_account_button_clicked
         )
         self.create_account_button.grid(
             row=1, column=0, pady=(0, 10), padx=10, sticky="ew"
         )
 
         self.update_account_button = Button(
-            self, text="Update Account", command=self.not_implemented_clicked
+            self, text="Update Account", command=self.update_account_button_clicked
         )
         self.update_account_button.grid(
             row=1, column=1, pady=(0, 10), padx=10, sticky="ew"
         )
 
         self.delete_account_button = Button(
-            self, text="Delete Account", command=self.not_implemented_clicked
+            self, text="Delete Account", command=self.delete_account_button_clicked
         )
         self.delete_account_button.grid(
             row=1, column=2, pady=(0, 10), padx=10, sticky="ew"
@@ -102,6 +106,10 @@ class AccountManagement(Frame):
             "<Double-1>", lambda event: self.transaction_account_button_clicked()
         )
 
+    def load(self, current_employee, search: str = ""):
+        self.current_employee = current_employee
+        self.load_account_list(search)
+
     def load_account_list(self, search: str = ""):
         for child in self.account_treeview.get_children(""):
             self.account_treeview.delete(child)
@@ -137,13 +145,116 @@ class AccountManagement(Frame):
     def search_button_clicked(self):
         self.load_account_list(self.search_entry.get().strip())
 
+    # ------------------------------------------------------------------
+    # Create / update / delete
+    # ------------------------------------------------------------------
+
+    def create_account_button_clicked(self):
+        fields = [
+            {"key": "first_name", "label": "First Name"},
+            {"key": "last_name", "label": "Last Name"},
+            {
+                "key": "account_number",
+                "label": "Account Number\n(leave empty to generate)",
+            },
+        ]
+
+        dialog = FormDialog(
+            self,
+            "Create Account",
+            fields,
+            self._create_account_submit,
+            submit_text="Create",
+        )
+
+        if dialog.show() is not None:
+            self.load_account_list(self.search_entry.get().strip())
+            messagebox.showinfo("Create Account", self.last_message)
+
+    def _create_account_submit(self, values):
+        response = self.account_business.create_account(
+            self.current_employee,
+            values["first_name"],
+            values["last_name"],
+            values["account_number"],
+        )
+
+        self.last_message = response.message
+        return response.success, response.message
+
+    def update_account_button_clicked(self):
+        account = self.selected_account()
+        if account is None:
+            return
+
+        initial = {
+            "first_name": account.owner_customer.first_name,
+            "last_name": account.owner_customer.last_name or "",
+            "account_number": account.account_number,
+        }
+
+        fields = [
+            {"key": "first_name", "label": "First Name"},
+            {"key": "last_name", "label": "Last Name"},
+            {"key": "account_number", "label": "Account Number"},
+        ]
+
+        dialog = FormDialog(
+            self,
+            "Update Account",
+            fields,
+            lambda values: self._update_account_submit(account.id, values),
+            initial=initial,
+            submit_text="Update",
+        )
+
+        if dialog.show() is not None:
+            self.load_account_list(self.search_entry.get().strip())
+            messagebox.showinfo("Update Account", self.last_message)
+
+    def _update_account_submit(self, account_id, values):
+        response = self.account_business.update_account(
+            self.current_employee,
+            account_id,
+            values["first_name"],
+            values["last_name"],
+            values["account_number"],
+        )
+
+        self.last_message = response.message
+        return response.success, response.message
+
+    def delete_account_button_clicked(self):
+        account = self.selected_account()
+        if account is None:
+            return
+
+        owner_name = account.owner_customer.get_fullname()
+
+        if not messagebox.askyesno(
+            "Delete Account",
+            f'Are you sure you want to delete "{owner_name}"?',
+        ):
+            return
+
+        response = self.account_business.delete_account(
+            self.current_employee, account.id
+        )
+
+        if not response.success:
+            messagebox.showerror("Delete Account", response.message)
+            return
+
+        self.load_account_list(self.search_entry.get().strip())
+        messagebox.showinfo("Delete Account", response.message)
+
     def transaction_account_button_clicked(self):
         account = self.selected_account()
         if account is None:
             return
 
         transactions_frame = self.main_view.show_frame("transactions")
-        transactions_frame.load(account)
+        transactions_frame.load(account, self.current_employee)
 
     def export_statement_button_clicked(self):
         account = self.selected_account()
@@ -171,9 +282,3 @@ class AccountManagement(Frame):
                 "The selected account is no longer available. Please refresh the list.",
             )
         return account
-
-    def not_implemented_clicked(self):
-        messagebox.showinfo(
-            "Coming soon",
-            "This account action is not part of the current implementation.",
-        )
